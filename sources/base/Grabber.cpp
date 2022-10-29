@@ -910,3 +910,8 @@ QJsonObject Grabber::getJsonInfo()
 void Grabber::alternativeCaching(bool alternative)
 {
 }
+
+bool Grabber::isRunning()
+{
+	return false;
+}
