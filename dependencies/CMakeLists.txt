@@ -14,11 +14,19 @@ endif()
 # FLATBUFFER
 #=============================================================================
 
-set(USE_SYSTEM_FLATBUFFERS_LIBS ${DEFAULT_USE_SYSTEM_FLATBUFFERS_LIBS} CACHE BOOL "use flatbuffers library from system")
-
 if (USE_SYSTEM_FLATBUFFERS_LIBS)
-	find_program(FLATBUFFERS_FLATC_EXECUTABLE NAMES flatc REQUIRED)
-	find_package(Flatbuffers REQUIRED)
+	message(WARNING "Try using the flatbuffers system libraries instead of the linked version. Absolutely no guarantee.")
+	find_program(FLATBUFFERS_FLATC_EXECUTABLE NAMES flatc)
+	find_package(FlatBuffers)
+
+	if (NOT FLATBUFFERS_FOUND OR NOT FLATBUFFERS_FLATC_EXECUTABLE)
+		message(WARNING "Could NOT find flatbuffers system libraries or the compilet, build static flatbuffers libraries and compiler")
+		#Fallback: build flatbuffers static libray inside project
+		set(DEFAULT_USE_SYSTEM_FLATBUFFERS_LIBS OFF PARENT_SCOPE)
+		set(USE_SYSTEM_FLATBUFFERS_LIBS OFF)
+	else()
+		message(STATUS "Found system FLATBUFFERS libs.")
+	endif(NOT FLATBUFFERS_FOUND OR NOT FLATBUFFERS_FLATC_EXECUTABLE)
 else ()
 	set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared flatbuffers library")
 	set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "Build Flatbuffers with tests")	
@@ -74,15 +82,17 @@ endfunction()
 # MBEDTLS
 #=============================================================================
 
-set(USE_SYSTEM_MBEDTLS_LIBS ${DEFAULT_USE_SYSTEM_MBEDTLS_LIBS} CACHE BOOL "use mbedtls library from system")
-
 if (USE_SYSTEM_MBEDTLS_LIBS)
-	find_package(mbedtls REQUIRED)
+	message(WARNING "Try using the mbedtls system libraries instead of the linked version. Absolutely no guarantee.")
+	find_package(mbedtls)
+
 	if (NOT MBEDTLS_FOUND)
-		message(STATUS "Could NOT find mbedtls system libraries, build static mbedtls libraries")
+		message(WARNING "Could NOT find mbedtls system libraries, build static mbedtls libraries")
 		#Fallback: build mbedtls static libray inside project
 		set(DEFAULT_USE_SYSTEM_MBEDTLS_LIBS OFF PARENT_SCOPE)
 		set(USE_SYSTEM_MBEDTLS_LIBS OFF)
+	else()
+		message(STATUS "Found system MBEDTLS version: ${MBEDTLS_VERSION}")
 	endif (NOT MBEDTLS_FOUND)
 else()
 	cmake_minimum_required(VERSION 3.2)
@@ -140,16 +150,36 @@ else()
 
 endif (USE_SYSTEM_MBEDTLS_LIBS)
 
+#=============================================================================
+# MQTT
+#=============================================================================
+
 if ( ENABLE_MQTT )
-	# HyperHDR workaround for fixed Qt5 version
-	file(READ "${CMAKE_CURRENT_SOURCE_DIR}/external/qmqtt/CMakeLists.txt" FILE_CONTENTS)
-	string(REPLACE "Qt5" "Qt${Qt_VERSION}" FILE_CONTENTS "${FILE_CONTENTS}")
-	file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/external/qmqtt/CMakeLists.txt" "${FILE_CONTENTS}")
+	if (USE_SYSTEM_MQTT_LIBS)
+		message(WARNING "Try using the qmqtt system libraries instead of the linked version. Absolutely no guarantee.")
 
-	if (NOT WIN32)	
-		set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
-		set(qmqtt_SHARED OFF)
+		find_package(Qmqtt)
+
+		if (NOT QMQTT_FOUND)
+			message(WARNING "Could NOT find qmqtt system libraries, build static qmqtt libraries")
+			#Fallback: build qmqtt static libray inside project
+			set(DEFAULT_USE_SYSTEM_MQTT_LIBS OFF PARENT_SCOPE)
+			set(USE_SYSTEM_MQTT_LIBS OFF)
+		else()
+			message(STATUS "Found system QMQTT libs.")
+		endif()
+	else()
+		# HyperHDR workaround for fixed Qt5 version
+		file(READ "${CMAKE_CURRENT_SOURCE_DIR}/external/qmqtt/CMakeLists.txt" FILE_CONTENTS)
+		string(REPLACE "Qt5" "Qt${Qt_VERSION}" FILE_CONTENTS "${FILE_CONTENTS}")
+		string(REPLACE "find_package" "#find_package" FILE_CONTENTS "${FILE_CONTENTS}")		
+		file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/external/qmqtt/CMakeLists.txt" "${FILE_CONTENTS}")
+
+		if (NOT WIN32)	
+			set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+			set(qmqtt_SHARED OFF)
+		endif()
+
+		add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/qmqtt)
 	endif()
-
-	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/qmqtt)	
 ENDIF()
